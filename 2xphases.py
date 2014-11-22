@@ -230,8 +230,6 @@ print
 
 tmp_filename_list=[]
 
-###############todo sa convertesc si rata de esantionare daca este data
-
 for k,input_filename in enumerate(input_filename_list):
     if options.sample_rate>0 or not os.path.splitext(input_filename)[1].lower()==".wav":
         tmp_file, tmp_filename = tempfile.mkstemp(prefix="2xphases_",suffix=".wav")
