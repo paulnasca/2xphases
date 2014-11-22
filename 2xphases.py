@@ -5,6 +5,7 @@
 #
 # You can use this to convolve signals and to get interesting effects.
 # Usage: "./2xphases.py --help" for more information
+# For loading non-wav files (like mp3, ogg, etc) or changing the samplerate it requires "avconv"
 #
 # You can try this for a whole melody to get interesting effect.
 
@@ -18,6 +19,10 @@ import gc
 import warnings
 import contextlib
 import struct
+import os
+import os.path
+import subprocess
+import tempfile
 
 import scipy.io.wavfile
 import wave
@@ -136,8 +141,8 @@ def process_files(input_filename_list,options):
         file_freqs_list=[]
 
         #do FFT for input files
-        for input_filename in input_filename_list:
-            print "Processing (ch: {0}/{1}) file: {2}" .format(nchannel+1,info.nchannels,input_filename)
+        for k,input_filename in enumerate(input_filename_list):
+            print "Processing (ch: {0}/{1}) file #{2}" .format(nchannel+1,info.nchannels,k+1)
             file_freqs=fft_file_and_process(input_filename, nchannel,info.nsamples,options.unwrap_phases)
             file_freqs_list.append(file_freqs)
 
@@ -206,6 +211,7 @@ parser = OptionParser(usage="usage: %prog [options] -o output_wav input1 [input2
 parser.add_option("-a", "--amplitude_power", dest="amplitude_power",help="amplitude power (1.0 = no change)",type="float",default=1.0)
 parser.add_option("-p", "--phase_multiplier", dest="phase_multiplier",help="phase multiplier (1.0 = no change)",type="float",default=1.0)
 parser.add_option("-u", "--unwrap_phases", dest="unwrap_phases",help="unwrap phases (0=no,1=yes, default 1)",type="int",default=1)
+parser.add_option("-r", "--sample_rate", dest="sample_rate",help="convert to samplerate",type="int",default=0)
 parser.add_option("-s", "--extra_seconds", dest="extra_seconds",help="minimum amount silence appended",type="float",default=0.0)
 parser.add_option("-o", "--output", dest="output",help="output WAV file",type="string",default="")
 (options, args) = parser.parse_args()
@@ -219,5 +225,32 @@ input_filename_list=args[:]
 print "Input files: "+", ".join(input_filename_list)
 print "Output file: "+options.output
 print
+
+#convert the input files, if necessary
+
+tmp_filename_list=[]
+
+###############todo sa convertesc si rata de esantionare daca este data
+
+for k,input_filename in enumerate(input_filename_list):
+    if options.sample_rate>0 or not os.path.splitext(input_filename)[1].lower()==".wav":
+        tmp_file, tmp_filename = tempfile.mkstemp(prefix="2xphases_",suffix=".wav")
+        os.close(tmp_file)
+        tmp_filename_list.append(tmp_filename)
+        input_filename_list[k]=tmp_filename
+    
+        cmdline=["avconv", "-y", "-v","quiet", "-i",input_filename]
+        if options.sample_rate>0:
+                cmdline+=["-ar",str(options.sample_rate)]
+        cmdline.append(tmp_filename)
+        subprocess.call(cmdline)
+
+
+
 process_files(input_filename_list,options)
+
+#cleanup temp files
+for tmp_filename in tmp_filename_list:
+    os.remove(tmp_filename)
+
 
