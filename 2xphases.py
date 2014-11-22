@@ -25,6 +25,7 @@ import subprocess
 import tempfile
 
 import scipy.io.wavfile
+from scipy import signal
 import wave
 
 import numpy as np
@@ -128,6 +129,11 @@ def fft_file_and_process(input_filename,nchannel,size_adjust,unwrap_phases):
     return files_freqs
 
 
+def LPFButter(smp,samplerate,freq,filter_order=3):
+    b,a=signal.butter(filter_order,2.0*freq/float(samplerate))
+    smp=signal.filtfilt(b,a,smp)   
+
+    return smp
 
 
 def process_files(input_filename_list,options):
@@ -162,11 +168,29 @@ def process_files(input_filename_list,options):
             cleanup_memory()
    
         #do the processing
-
-        #divide_by_nfiles=1.0/len(input_filename_list)
         divide_by_nfiles=1.0
 
+
+        if options.smooth_amplitude_freq>0.0:
+            print " Smoothing amplitude spectrum"
+            len_seconds=2.0*float(len(result_freqs_amp))/float(info.samplerate)
+            smooth_freq_val=0.5/(options.smooth_amplitude_freq*len_seconds)
+            if smooth_freq_val>0.5:
+                smooth_freq_val=0.5
+            result_freqs_envelope=LPFButter(result_freqs_amp,1.0,smooth_freq_val)
+            result_freqs_envelope[result_freqs_envelope<1e-6]=1e-6
+            result_freqs_amp/=result_freqs_envelope
+            result_freqs_amp/=max(result_freqs_amp)+1e-6
+
+
         result_freqs_amp=np.power(result_freqs_amp,options.amplitude_power*divide_by_nfiles)
+
+        if options.smooth_amplitude_freq>0.0:
+            result_freqs_amp*=result_freqs_envelope
+            result_freqs_amp/=max(result_freqs_amp)+1e-6
+            del result_freqs_envelope
+            cleanup_memory()
+
         result_freqs_phases=result_freqs_phases*options.phase_multiplier*divide_by_nfiles
 
         #remove low frequencies below 20Hz 
@@ -211,6 +235,7 @@ parser = OptionParser(usage="usage: %prog [options] -o output_wav input1 [input2
 parser.add_option("-a", "--amplitude_power", dest="amplitude_power",help="amplitude power (1.0 = no change)",type="float",default=1.0)
 parser.add_option("-p", "--phase_multiplier", dest="phase_multiplier",help="phase multiplier (1.0 = no change)",type="float",default=1.0)
 parser.add_option("-u", "--unwrap_phases", dest="unwrap_phases",help="unwrap phases (0=no,1=yes, default 1)",type="int",default=1)
+parser.add_option("-f", "--smooth_amplitude_freq", dest="smooth_amplitude_freq",help="how amplitude spectrum is smoothed (used for higher amplitude_power values)",type="float",default=-1.0)
 parser.add_option("-r", "--sample_rate", dest="sample_rate",help="convert to samplerate",type="int",default=0)
 parser.add_option("-s", "--extra_seconds", dest="extra_seconds",help="minimum amount silence appended",type="float",default=0.0)
 parser.add_option("-o", "--output", dest="output",help="output WAV file",type="string",default="")
