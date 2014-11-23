@@ -129,8 +129,8 @@ def fft_file_and_process(input_filename,nchannel,size_adjust,unwrap_phases):
     return files_freqs
 
 
-def LPFButter(smp,samplerate,freq,filter_order=3):
-    b,a=signal.butter(filter_order,2.0*freq/float(samplerate))
+def LPF(smp,samplerate,freq,filter_order=3):
+    b,a=signal.bessel(filter_order,2.0*freq/float(samplerate))
     smp=signal.filtfilt(b,a,smp)   
 
     return smp
@@ -177,11 +177,12 @@ def process_files(input_filename_list,options):
             smooth_freq_val=0.5/(options.smooth_amplitude_freq*len_seconds)
             if smooth_freq_val>0.5:
                 smooth_freq_val=0.5
-            result_freqs_envelope=LPFButter(result_freqs_amp,1.0,smooth_freq_val)
+            result_freqs_envelope=LPF(result_freqs_amp,1.0,smooth_freq_val)
             result_freqs_envelope[result_freqs_envelope<1e-6]=1e-6
+
             result_freqs_amp/=result_freqs_envelope
             result_freqs_amp/=max(result_freqs_amp)+1e-6
-
+            
 
         result_freqs_amp=np.power(result_freqs_amp,options.amplitude_power*divide_by_nfiles)
 
