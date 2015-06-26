@@ -25,11 +25,10 @@ import subprocess
 import tempfile
 
 import scipy.io.wavfile
-from scipy import signal
+from scipy import signal,ndimage
 import wave
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 from optparse import OptionParser
 from tempfile import TemporaryFile
@@ -129,13 +128,6 @@ def fft_file_and_process(input_filename,nchannel,size_adjust,unwrap_phases):
     return files_freqs
 
 
-def LPF(smp,samplerate,freq,filter_order=3):
-    b,a=signal.bessel(filter_order,2.0*freq/float(samplerate))
-    smp=signal.filtfilt(b,a,smp)   
-
-    return smp
-
-
 def process_files(input_filename_list,options):
     info=compute_resulted_file_info(input_filename_list,options.extra_seconds)
     print "Resulted samples: ",info.nsamples
@@ -171,24 +163,23 @@ def process_files(input_filename_list,options):
         divide_by_nfiles=1.0
 
 
-        if options.smooth_amplitude_freq>0.0:
-            print " Smoothing amplitude spectrum"
-            len_seconds=2.0*float(len(result_freqs_amp))/float(info.samplerate)
-            smooth_freq_val=0.5/(options.smooth_amplitude_freq*len_seconds)
-            if smooth_freq_val>0.5:
-                smooth_freq_val=0.5
-            result_freqs_envelope=LPF(result_freqs_amp,1.0,smooth_freq_val)
+        if options.keep_envelope:
+            print " - computing spectrum envelope"
+            one_hz_size=2.0*float(len(result_freqs_amp))/float(info.samplerate)
+            result_freqs_envelope=ndimage.filters.maximum_filter1d(result_freqs_amp,size=int(one_hz_size))
             result_freqs_envelope[result_freqs_envelope<1e-6]=1e-6
-
+            print " - applying spectrum envelope"
             result_freqs_amp/=result_freqs_envelope
             result_freqs_amp/=max(result_freqs_amp)+1e-6
             
 
         result_freqs_amp=np.power(result_freqs_amp,options.amplitude_power*divide_by_nfiles)
 
-        if options.smooth_amplitude_freq>0.0:
+        if options.keep_envelope:
             result_freqs_amp*=result_freqs_envelope
+
             result_freqs_amp/=max(result_freqs_amp)+1e-6
+
             del result_freqs_envelope
             cleanup_memory()
 
@@ -236,7 +227,7 @@ parser = OptionParser(usage="usage: %prog [options] -o output_wav input1 [input2
 parser.add_option("-a", "--amplitude_power", dest="amplitude_power",help="amplitude power (1.0 = no change)",type="float",default=1.0)
 parser.add_option("-p", "--phase_multiplier", dest="phase_multiplier",help="phase multiplier (1.0 = no change)",type="float",default=1.0)
 parser.add_option("-u", "--unwrap_phases", dest="unwrap_phases",help="unwrap phases (0=no,1=yes, default 1)",type="int",default=1)
-parser.add_option("-f", "--smooth_amplitude_freq", dest="smooth_amplitude_freq",help="how amplitude spectrum is smoothed (used for higher amplitude_power values)",type="float",default=-1.0)
+parser.add_option("-k", "--keep-envelope", dest="keep_envelope", action="store_true",help="try to preserve the overall amplitude envelope",default=False)
 parser.add_option("-r", "--sample_rate", dest="sample_rate",help="convert to samplerate",type="int",default=0)
 parser.add_option("-s", "--extra_seconds", dest="extra_seconds",help="minimum amount silence appended",type="float",default=0.0)
 parser.add_option("-o", "--output", dest="output",help="output WAV file",type="string",default="")
@@ -276,5 +267,8 @@ process_files(input_filename_list,options)
 #cleanup temp files
 for tmp_filename in tmp_filename_list:
     os.remove(tmp_filename)
+
+print
+
 
 
