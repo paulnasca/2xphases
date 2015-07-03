@@ -36,15 +36,6 @@ from tempfile import TemporaryFile
 
 tmpextension=".npy"
 
-def print_self_memory_usage(text):
-    cleanup_memory()
-    with open("/proc/self/status") as f:
-        content = f.readlines()
-        for l in content:
-            if l.startswith("VmData"):
-                print text+" "+l.strip()
-
-
 def cleanup_memory():
     gc.collect()
 
