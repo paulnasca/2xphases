@@ -93,11 +93,11 @@ def process_audiofile(input_filename,output_filename,options):
     with contextlib.closing(wave.open(tmp_wav_filename,'rb')) as f:
         samplerate=f.getframerate()
     input_block_size_samples=int(optimize_fft_size(options.blocksize_seconds*samplerate))
-    print "Block size (samples):",input_block_size_samples
+    print "Input block size (samples):",input_block_size_samples
     if options.keep_envelope:
         print "Spectrum envelope preservation: enabled"
         envelopes=[]
-        output_block_size_samples=input_block_size_samples*3
+        output_block_size_samples=optimize_fft_size(int(input_block_size_samples*2.5))
     else:
         output_block_size_samples=input_block_size_samples*2
     
@@ -158,7 +158,7 @@ def process_audiofile(input_filename,output_filename,options):
     #get the freq blocks and combine them, saving each output chunk
     block_mixes=get_block_mixes(n_blocks)
    
-    max_smp=np.zeros(nchannels)+1e-6
+    max_smp=np.zeros(nchannels,dtype=np.float32)+1e-6
     for k,block_mix in enumerate(block_mixes):
         print "Mixing blocks %d/%d " % (k+1,len(block_mixes))
         multichannel_smps=[]
@@ -177,16 +177,15 @@ def process_audiofile(input_filename,output_filename,options):
             if extra_output_samples>0:
                 extra=extra_output_samples/2
                 smp=np.roll(smp,extra)
-                smp[:extra]*=np.linspace(0,1,extra)
-                smp[-extra:]*=np.linspace(1,0,extra)
+                smp[:extra]*=np.linspace(0.0,1.0,extra)
+                smp[-extra:]*=np.linspace(1.0,0.0,extra)
                 cleanup_memory()
             del sum_freqs
-            max_current_smp=max(max(smp),-min(smp))
+            max_current_smp=max(np.amax(smp),-np.amin(smp))
             max_smp[nchannel]=max(max_current_smp,max_smp[nchannel])
             multichannel_smps.append(smp)
             del smp
             cleanup_memory()
-
         multichannel_smps=np.dstack(multichannel_smps)[0]
         np.save(get_tmpsmp_filename(tmpdir,k),multichannel_smps)
         del multichannel_smps
