@@ -36,6 +36,15 @@ from tempfile import TemporaryFile
 
 tmpextension=".npy"
 
+def print_self_memory_usage(text):
+    cleanup_memory()
+    with open("/proc/self/status") as f:
+        content = f.readlines()
+        for l in content:
+            if l.startswith("VmData"):
+                print text+" "+l.strip()
+
+
 def cleanup_memory():
     gc.collect()
 
@@ -105,7 +114,7 @@ def process_audiofile(input_filename,output_filename,options):
 
         if envelopes is not None:
             for nchannel in range(nchannels):
-                envelopes.append(np.zeros(fft_size))
+                envelopes.append(np.zeros(fft_size,dtype=np.float32))
 
         
         n_blocks=nsamples//input_block_size_samples+1
@@ -122,9 +131,9 @@ def process_audiofile(input_filename,output_filename,options):
             for nchannel in range(nchannels):
                 smp=np.fromstring(inbuf,dtype=np.int16)[nchannel::nchannels]
 
-                smp=smp*(1.0/32768)
-                smp=np.concatenate((smp,np.zeros(output_block_size_samples-len(smp))))
-                in_freqs=np.fft.rfft(smp)
+                smp=smp*np.float32(1.0/32768)
+                smp=np.concatenate((smp,np.zeros(output_block_size_samples-len(smp),dtype=np.float32)))
+                in_freqs=np.complex64(np.fft.rfft(smp))
                 tmp_filename=get_tmpfft_filename(tmpdir,block_k,nchannel)
 
                 if envelopes is not None:
@@ -137,10 +146,11 @@ def process_audiofile(input_filename,output_filename,options):
                 cleanup_memory()
             del inbuf
         cleanup_memory()
-
+        
     
     #smooth envelopes
     if envelopes is not None:
+        print "Smoothing envelopes"
         for nchannel in range(nchannels):
             one_hz_size=2.0*float(fft_size)/float(samplerate)
             envelopes[nchannel]=ndimage.filters.maximum_filter1d(envelopes[nchannel],size=int(one_hz_size+0.5))+1e-9
@@ -150,31 +160,38 @@ def process_audiofile(input_filename,output_filename,options):
    
     max_smp=np.zeros(nchannels)+1e-6
     for k,block_mix in enumerate(block_mixes):
+        print "Mixing blocks %d/%d " % (k+1,len(block_mixes))
         multichannel_smps=[]
         for nchannel in range(nchannels): 
-            sum_freqs=np.zeros(output_block_size_samples/2+1,dtype=np.complex)
+            sum_freqs=np.zeros(output_block_size_samples/2+1,dtype=np.complex64)
             for ((b1_k,b2_k),mul) in block_mix.iteritems():
                 #if abs(b1_k-b2_k)>2: continue #interesting effect
                 freq1=np.load(get_tmpfft_filename(tmpdir,b1_k,nchannel))
                 freq2=np.load(get_tmpfft_filename(tmpdir,b2_k,nchannel))
                 sum_freqs+=(freq1*freq2)*mul
+                cleanup_memory()
             if envelopes is not None:
                 sum_freqs=sum_freqs/envelopes[nchannel]
-            smp=np.fft.irfft(sum_freqs)
+            smp=np.float32(np.fft.irfft(sum_freqs))
+            cleanup_memory()
             if extra_output_samples>0:
                 extra=extra_output_samples/2
                 smp=np.roll(smp,extra)
                 smp[:extra]*=np.linspace(0,1,extra)
                 smp[-extra:]*=np.linspace(1,0,extra)
+                cleanup_memory()
             del sum_freqs
             max_current_smp=max(max(smp),-min(smp))
             max_smp[nchannel]=max(max_current_smp,max_smp[nchannel])
             multichannel_smps.append(smp)
+            del smp
+            cleanup_memory()
 
         multichannel_smps=np.dstack(multichannel_smps)[0]
         np.save(get_tmpsmp_filename(tmpdir,k),multichannel_smps)
+        del multichannel_smps
+        cleanup_memory()
 #tes
-        print "Mixing blocks %d/%d " % (k+1,len(block_mixes))
 
     print "Combining blocks"
     #get the output chunks, normalize them and combine to one wav file
@@ -185,8 +202,8 @@ def process_audiofile(input_filename,output_filename,options):
         
         old_buf=[]
         for k in range(len(block_mixes)):
-            cleanup_memory()
-            current_smps=np.load(get_tmpsmp_filename(tmpdir,k))*(0.7/max_smp)
+            print "Output block %d/%d" % (k+1,len(block_mixes))
+            current_smps=np.float32(np.load(get_tmpsmp_filename(tmpdir,k))*(0.7/max_smp))
             current_buf=current_smps[:input_block_size_samples]
             result_buf=current_buf
                  
@@ -198,6 +215,12 @@ def process_audiofile(input_filename,output_filename,options):
 
             output_buf=np.int16(result_buf*32767.0).flatten().tostring()
             f.writeframes(output_buf)
+
+            del result_buf
+            del current_smps
+            del current_buf
+            del output_buf
+            cleanup_memory()
 
 
 
