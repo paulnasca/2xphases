@@ -91,6 +91,8 @@ def process_audiofile(input_filename,output_filename,options):
         output_block_size_samples=input_block_size_samples*3
     else:
         output_block_size_samples=input_block_size_samples*2
+    if options.limit_blocks>0:
+        print "Limiting to %d adjacent blocks" % options.limit_blocks
     
     extra_output_samples=output_block_size_samples-input_block_size_samples*2
 
@@ -156,7 +158,9 @@ def process_audiofile(input_filename,output_filename,options):
         for nchannel in range(nchannels): 
             sum_freqs=np.zeros(output_block_size_samples/2+1,dtype=np.complex64)
             for ((b1_k,b2_k),mul) in block_mix.iteritems():
-                #if abs(b1_k-b2_k)>2: continue #interesting effect
+                if options.limit_blocks>0:
+                    if abs(b1_k-b2_k)>options.limit_blocks: 
+                        continue
                 freq1=np.load(get_tmpfft_filename(tmpdir,b1_k,nchannel))
                 freq2=np.load(get_tmpfft_filename(tmpdir,b2_k,nchannel))
                 sum_freqs+=(freq1*freq2)*mul
@@ -230,6 +234,7 @@ parser = OptionParser(usage="usage: %prog [options] -o output.wav input.wav")
 parser.add_option("-o", "--output", dest="output",help="output WAV file",type="string",default="")
 parser.add_option("-k", "--keep-envelope", dest="keep_envelope", action="store_true",help="try to preserve the overall amplitude envelope",default=False)
 parser.add_option("-b", "--blocksize_seconds", dest="blocksize_seconds",help="blocksize (seconds)",type="float",default=60.0)
+parser.add_option("-l", "--limit_blocks", dest="limit_blocks",help="limit to adjacent L blocks in order to avoid mixing too distant parts of the audio file (default 0 = unlimited)",type="int",default=0)
 (options, args) = parser.parse_args()
 
 if len(args)!=1 or len(options.output)==0:
