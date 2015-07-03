@@ -88,7 +88,7 @@ def process_audiofile(input_filename,output_filename,options):
     if options.keep_envelope:
         print "Spectrum envelope preservation: enabled"
         envelopes=[]
-        output_block_size_samples=optimize_fft_size(int(input_block_size_samples*2.5))
+        output_block_size_samples=input_block_size_samples*3
     else:
         output_block_size_samples=input_block_size_samples*2
     
