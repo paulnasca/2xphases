@@ -75,6 +75,8 @@ def process_audiofile(input_filename,output_filename,options):
     tmpdir=tempfile.mkdtemp("2xautoconvolution")
    
     cmdline=["avconv", "-y", "-v","quiet", "-i",input_filename]
+    if options.sample_rate>0:
+        cmdline+=["-ar",str(options.sample_rate)]
     tmp_wav_filename=os.path.join(tmpdir,"tmp_input.wav")
     cmdline.append(tmp_wav_filename)
     subprocess.call(cmdline)
@@ -235,6 +237,7 @@ parser.add_option("-o", "--output", dest="output",help="output WAV file",type="s
 parser.add_option("-k", "--keep-envelope", dest="keep_envelope", action="store_true",help="try to preserve the overall amplitude envelope",default=False)
 parser.add_option("-b", "--blocksize_seconds", dest="blocksize_seconds",help="blocksize (seconds)",type="float",default=60.0)
 parser.add_option("-l", "--limit_blocks", dest="limit_blocks",help="limit to adjacent L blocks in order to avoid mixing too distant parts of the audio file (default 0 = unlimited)",type="int",default=0)
+parser.add_option("-r", "--sample_rate", dest="sample_rate",help="convert to samplerate",type="int",default=0)
 (options, args) = parser.parse_args()
 
 if len(args)!=1 or len(options.output)==0:
