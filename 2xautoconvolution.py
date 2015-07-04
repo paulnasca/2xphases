@@ -27,7 +27,7 @@ from collections import defaultdict
 
 from scipy import signal,ndimage
 import wave
-import scipy.io.wavfile #temporary
+import scipy.io.wavfile #for debugging
 
 import numpy as np
 
@@ -35,6 +35,11 @@ from optparse import OptionParser
 from tempfile import TemporaryFile
 
 tmpextension=".npy"
+
+def debug_write_wav(filename,samplerate,smp):
+    if len(smp)==0:
+        smp=np.zeros(1)
+    scipy.io.wavfile.write(filename,samplerate,smp/(max(np.abs(smp))+1e-6))
 
 def cleanup_memory():
     gc.collect()
@@ -71,6 +76,10 @@ def get_block_mixes(n_blocks):
     result=[v for k,v in pos.iteritems()]
     return result
 
+def ramp_window(smp,ramp_size):
+    smp[:ramp_size]*=np.linspace(0.0,1.0,ramp_size)
+    smp[-ramp_size:]*=np.linspace(1.0,0.0,ramp_size)
+
 def process_audiofile(input_filename,output_filename,options):
     tmpdir=tempfile.mkdtemp("2xautoconvolution")
    
@@ -87,10 +96,13 @@ def process_audiofile(input_filename,output_filename,options):
         samplerate=f.getframerate()
     input_block_size_samples=int(optimize_fft_size(options.blocksize_seconds*samplerate))
     print "Input block size (samples):",input_block_size_samples
+    input_ramp_size=0
     if options.keep_envelope:
         print "Spectrum envelope preservation: enabled"
         envelopes=[]
         output_block_size_samples=input_block_size_samples*3
+        if options.limit_blocks>0:
+            input_ramp_size=int(10.0*(samplerate/1000.0))
     else:
         output_block_size_samples=input_block_size_samples*2
     if options.limit_blocks>0:
@@ -127,6 +139,11 @@ def process_audiofile(input_filename,output_filename,options):
                 smp=np.fromstring(inbuf,dtype=np.int16)[nchannel::nchannels]
 
                 smp=smp*np.float32(1.0/32768)
+                
+                if 0<input_ramp_size*2<len(smp):
+                    ramp_window(smp,input_ramp_size)
+
+                
                 smp=np.concatenate((smp,np.zeros(output_block_size_samples-len(smp),dtype=np.float32)))
                 in_freqs=np.complex64(np.fft.rfft(smp))
                 tmp_filename=get_tmpfft_filename(tmpdir,block_k,nchannel)
@@ -174,8 +191,8 @@ def process_audiofile(input_filename,output_filename,options):
             if extra_output_samples>0:
                 extra=extra_output_samples/2
                 smp=np.roll(smp,extra)
-                smp[:extra]*=np.linspace(0.0,1.0,extra)
-                smp[-extra:]*=np.linspace(1.0,0.0,extra)
+                ramp_window(smp,extra)
+                #debug_write_wav(os.path.join("tmp/out_%d_%04d.wav" % (nchannel,k)),samplerate,smp) 
                 cleanup_memory()
             del sum_freqs
             max_current_smp=max(np.amax(smp),-np.amin(smp))
