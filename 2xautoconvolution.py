@@ -132,7 +132,8 @@ def process_audiofile(input_filename,output_filename,options):
         print "Using %d blocks" % n_blocks
         #analyse audio and make frequency blocks
         for block_k in range(n_blocks):
-            print "Doing FFT for block %d/%d" % (block_k+1,n_blocks)
+            print "Doing FFT for block %d/%d  \r" % (block_k+1,n_blocks),
+            sys.stdout.flush()
             inbuf=f.readframes(input_block_size_samples)
             freq_block=[]
             for nchannel in range(nchannels):
@@ -158,6 +159,8 @@ def process_audiofile(input_filename,output_filename,options):
                 cleanup_memory()
             del inbuf
         cleanup_memory()
+
+    print
         
     
     #smooth envelopes
@@ -172,7 +175,8 @@ def process_audiofile(input_filename,output_filename,options):
    
     max_smp=np.zeros(nchannels,dtype=np.float32)+1e-6
     for k,block_mix in enumerate(block_mixes):
-        print "Mixing blocks %d/%d " % (k+1,len(block_mixes))
+        print "Mixing blocks %d/%d (size %d)       \r" % (k+1,len(block_mixes),len(block_mix)),
+        sys.stdout.flush()
         multichannel_smps=[]
         for nchannel in range(nchannels): 
             sum_freqs=np.zeros(output_block_size_samples/2+1,dtype=np.complex64)
@@ -204,8 +208,8 @@ def process_audiofile(input_filename,output_filename,options):
         np.save(get_tmpsmp_filename(tmpdir,k),multichannel_smps)
         del multichannel_smps
         cleanup_memory()
-#tes
 
+    print
     print "Combining blocks"
     #get the output chunks, normalize them and combine to one wav file
     with contextlib.closing(wave.open(output_filename,'wb')) as f:
@@ -215,7 +219,8 @@ def process_audiofile(input_filename,output_filename,options):
         
         old_buf=[]
         for k in range(len(block_mixes)):
-            print "Output block %d/%d" % (k+1,len(block_mixes))
+            print "Output block %d/%d \r" % (k+1,len(block_mixes)),
+            sys.stdout.flush()
             current_smps=np.float32(np.load(get_tmpsmp_filename(tmpdir,k))*(0.7/max_smp))
             current_buf=current_smps[:input_block_size_samples]
             result_buf=current_buf
