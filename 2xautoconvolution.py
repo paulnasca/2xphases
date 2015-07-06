@@ -176,7 +176,10 @@ def process_audiofile(input_filename,output_filename,options):
    
     max_smp=np.zeros(nchannels,dtype=np.float32)+1e-6
     for k,block_mix in enumerate(block_mixes):
-        print "Mixing blocks %d/%d (size %d)       \r" % (k+1,len(block_mixes),len(block_mix)),
+        size_shown=len(block_mix)
+        if options.limit_blocks>0:
+            size_shown=min(size_shown,options.limit_blocks)
+        print "Mixing blocks %d/%d (size %d)       \r" % (k+1,len(block_mixes),size_shown),
         sys.stdout.flush()
         multichannel_smps=[]
         for nchannel in range(nchannels): 
