@@ -165,7 +165,7 @@ def process_audiofile(input_filename,output_filename,options):
         print "Smoothing envelopes"
         for nchannel in range(nchannels):
             one_hz_size=2.0*float(fft_size)/float(samplerate)
-            envelopes[nchannel]=ndimage.filters.maximum_filter1d(envelopes[nchannel],size=int(one_hz_size+0.5))+1e-9
+            envelopes[nchannel]=ndimage.filters.maximum_filter1d(envelopes[nchannel],size=max(int(one_hz_size+0.5),2))+1e-9
     
     #get the freq blocks and combine them, saving each output chunk
     block_mixes=get_block_mixes(n_blocks)
