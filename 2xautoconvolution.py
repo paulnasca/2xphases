@@ -225,7 +225,7 @@ def process_audiofile(input_filename,output_filename,options):
         for k in range(len(block_mixes)):
             print "Output block %d/%d \r" % (k+1,len(block_mixes)),
             sys.stdout.flush()
-            current_smps=np.float32(np.load(get_tmpsmp_filename(tmpdir,k))*(0.7/max_smp))
+            current_smps=np.float32(np.load(get_tmpsmp_filename(tmpdir,k))*(1.0/max_smp))
             current_buf=current_smps[:input_block_size_samples]
             result_buf=current_buf
                  
@@ -235,7 +235,7 @@ def process_audiofile(input_filename,output_filename,options):
                 old_buf[oldk]=old[input_block_size_samples:]
             old_buf.append(current_smps[input_block_size_samples:])
 
-            output_buf=np.int16(result_buf*32767.0).flatten().tostring()
+            output_buf=np.int16(np.clip(result_buf,-1.0,1.0)*32767.0).flatten().tostring()
             f.writeframes(output_buf)
 
             del result_buf
