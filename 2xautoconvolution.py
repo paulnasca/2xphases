@@ -82,6 +82,7 @@ def ramp_window(smp,ramp_size):
 
 def process_audiofile(input_filename,output_filename,options):
     tmpdir=tempfile.mkdtemp("2xautoconvolution")
+    print "Using temporary directory:", tmpdir
    
     cmdline=["avconv", "-y", "-v","quiet", "-i",input_filename]
     if options.sample_rate>0:
@@ -240,17 +241,22 @@ def process_audiofile(input_filename,output_filename,options):
             del output_buf
             cleanup_memory()
 
-
+    print
 
     #cleanup
+    cleanup_size=0
     for fn in glob.glob(os.path.join(tmpdir,"*"+tmpextension)):
+        cleanup_size+=os.path.getsize(fn)
         os.remove(fn)
+    cleanup_size+=os.path.getsize(tmp_wav_filename)
     os.remove(tmp_wav_filename)
     try:
         os.rmdir(tmpdir)
     except OSError:
         pass
 
+    print "%.3f GB was temporary used." % (cleanup_size/1e9)
+    print "Output was written in:",output_filename
 
 
 
@@ -272,6 +278,7 @@ print "Output file: "+options.output
 if not os.path.isfile(input_filename):
     print "Error: Could not open input file:",input_filename
     sys.exit(1)
+
 process_audiofile(input_filename,options.output,options)
 
 
