@@ -225,7 +225,7 @@ def process_audiofile(input_filename,output_filename,options):
         for k in range(len(block_mixes)):
             print "Output block %d/%d \r" % (k+1,len(block_mixes)),
             sys.stdout.flush()
-            current_smps=np.float32(np.load(get_tmpsmp_filename(tmpdir,k))*(1.0/max_smp))
+            current_smps=np.float32(np.load(get_tmpsmp_filename(tmpdir,k))*(0.7/max_smp))
             current_buf=current_smps[:input_block_size_samples]
             result_buf=current_buf
                  
