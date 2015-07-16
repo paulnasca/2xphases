@@ -129,8 +129,16 @@ def process_audiofile(input_filename,output_filename,options):
 
         #force adding extra zero block to flush out all the samples
         n_blocks+=1
-
         print "Using %d blocks" % n_blocks
+
+        #compute DC noise removal (removal of anything below 20Hz)
+        b20hz, a20hz = signal.butter(3,20.0/(float(samplerate)/2.0),btype="highpass")
+        
+        zi20=[]
+        for nchannel in range(nchannels):
+            zi20.append(signal.lfilter_zi(b20hz, a20hz))
+
+
         #analyse audio and make frequency blocks
         for block_k in range(n_blocks):
             print "Doing FFT for block %d/%d  \r" % (block_k+1,n_blocks),
@@ -140,11 +148,12 @@ def process_audiofile(input_filename,output_filename,options):
             for nchannel in range(nchannels):
                 smp=np.fromstring(inbuf,dtype=np.int16)[nchannel::nchannels]
 
-                smp=smp*np.float32(1.0/32768)
+                smp=smp*(1.0/32768)
+                smp, zi20[nchannel] = signal.lfilter(b20hz, a20hz, smp, zi=zi20[nchannel])
+                smp=np.float32(smp)
                 
                 if 0<input_ramp_size*2<len(smp):
                     ramp_window(smp,input_ramp_size)
-
                 
                 smp=np.concatenate((smp,np.zeros(output_block_size_samples-len(smp),dtype=np.float32)))
                 in_freqs=np.complex64(np.fft.rfft(smp))
@@ -168,8 +177,8 @@ def process_audiofile(input_filename,output_filename,options):
     if envelopes is not None:
         print "Smoothing envelopes"
         for nchannel in range(nchannels):
-            one_hz_size=2.0*float(fft_size)/float(samplerate)
-            envelopes[nchannel]=ndimage.filters.maximum_filter1d(envelopes[nchannel],size=max(int(one_hz_size+0.5),2))+1e-9
+            one_hz_size_output=2.0*float(fft_size)/float(samplerate)
+            envelopes[nchannel]=ndimage.filters.maximum_filter1d(envelopes[nchannel],size=max(int(one_hz_size_output+0.5),2))+1e-9
     
     #get the freq blocks and combine them, saving each output chunk
     block_mixes=get_block_mixes(n_blocks)
