@@ -3,7 +3,7 @@
 # Autoconvolution for long audio files
 #
 # The autoconvolution can produce very interesting effects on audio (especially if the overall spectrum envelope is preserved)
-# For loading non-wav files (like mp3, ogg, etc) or changing the samplerate it requires "avconv"
+# For loading non-wav files (like mp3, ogg, etc) or changing the sample_rate it requires "avconv"
 # This software requires a lot of temporary hard drive space for processing 
 #
 # You can try this for a whole melody to get interesting effect.
@@ -36,10 +36,10 @@ from tempfile import TemporaryFile
 
 tmpextension=".npy"
 
-def debug_write_wav(filename,samplerate,smp):
+def debug_write_wav(filename,sample_rate,smp):
     if len(smp)==0:
         smp=np.zeros(1)
-    scipy.io.wavfile.write(filename,samplerate,smp/(max(np.abs(smp))+1e-6))
+    scipy.io.wavfile.write(filename,sample_rate,smp/(max(np.abs(smp))+1e-6))
 
 def cleanup_memory():
     gc.collect()
@@ -80,7 +80,8 @@ def ramp_window(smp,ramp_size):
     smp[:ramp_size]*=np.linspace(0.0,1.0,ramp_size)
     smp[-ramp_size:]*=np.linspace(1.0,0.0,ramp_size)
 
-def process_audiofile(input_filename,output_filename,options):
+#keep envelope modes: 0 - don't keep envelope, 1 - don't keep envelope but align the sound, 2 - keep envelope
+def process_audiofile(input_filename,output_filename,options,keep_envelope_mode):
     tmpdir=tempfile.mkdtemp("2xautoconvolution")
     print "Using temporary directory:", tmpdir
    
@@ -92,22 +93,27 @@ def process_audiofile(input_filename,output_filename,options):
     subprocess.call(cmdline)
 
     envelopes=None
-    samplerate=0
+    sample_rate=0
     with contextlib.closing(wave.open(tmp_wav_filename,'rb')) as f:
-        samplerate=f.getframerate()
-    input_block_size_samples=int(optimize_fft_size(options.blocksize_seconds*samplerate))
+        sample_rate=f.getframerate()
+    input_block_size_samples=int(optimize_fft_size(options.blocksize_seconds*sample_rate))
     print "Input block size (samples):",input_block_size_samples
     input_ramp_size=0
-    if options.keep_envelope:
+    if keep_envelope_mode==0:
+        output_block_size_samples=input_block_size_samples*2
+    if keep_envelope_mode==1:
+        output_block_size_samples=input_block_size_samples*3
+    if keep_envelope_mode==2:
         print "Spectrum envelope preservation: enabled"
         envelopes=[]
         output_block_size_samples=input_block_size_samples*3
         if options.limit_blocks>0:
-            input_ramp_size=int(10.0*(samplerate/1000.0))
-    else:
-        output_block_size_samples=input_block_size_samples*2
+            input_ramp_size=int(10.0*(sample_rate/1000.0))
+
+
+
     if options.limit_blocks>0:
-        print "Limiting to %d adjacent blocks; resulted spread size is %.1f seconds" % (options.limit_blocks,options.limit_blocks*float(input_block_size_samples)/samplerate)
+        print "Limiting to %d adjacent blocks; resulted spread size is %.1f seconds" % (options.limit_blocks,options.limit_blocks*float(input_block_size_samples)/sample_rate)
     
     extra_output_samples=output_block_size_samples-input_block_size_samples*2
 
@@ -132,7 +138,7 @@ def process_audiofile(input_filename,output_filename,options):
         print "Using %d blocks" % n_blocks
 
         #compute DC noise removal (removal of anything below 20Hz)
-        b20hz, a20hz = signal.butter(3,20.0/(float(samplerate)/2.0),btype="highpass")
+        b20hz, a20hz = signal.butter(3,20.0/(float(sample_rate)/2.0),btype="highpass")
         
         zi20=[]
         for nchannel in range(nchannels):
@@ -177,7 +183,7 @@ def process_audiofile(input_filename,output_filename,options):
     if envelopes is not None:
         print "Smoothing envelopes"
         for nchannel in range(nchannels):
-            one_hz_size_output=2.0*float(fft_size)/float(samplerate)
+            one_hz_size_output=2.0*float(fft_size)/float(sample_rate)
             envelopes[nchannel]=ndimage.filters.maximum_filter1d(envelopes[nchannel],size=max(int(one_hz_size_output+0.5),2))+1e-9
     
     #get the freq blocks and combine them, saving each output chunk
@@ -209,7 +215,7 @@ def process_audiofile(input_filename,output_filename,options):
                 extra=extra_output_samples/2
                 smp=np.roll(smp,extra)
                 ramp_window(smp,extra)
-                #debug_write_wav(os.path.join("tmp/out_%d_%04d.wav" % (nchannel,k)),samplerate,smp) 
+                #debug_write_wav(os.path.join("tmp/out_%d_%04d.wav" % (nchannel,k)),sample_rate,smp) 
                 cleanup_memory()
             del sum_freqs
             max_current_smp=max(np.amax(smp),-np.amin(smp))
@@ -227,7 +233,7 @@ def process_audiofile(input_filename,output_filename,options):
     #get the output chunks, normalize them and combine to one wav file
     with contextlib.closing(wave.open(output_filename,'wb')) as f:
         f.setnchannels(nchannels)
-        f.setframerate(samplerate)
+        f.setframerate(sample_rate)
         f.setsampwidth(2)
         
         old_buf=[]
@@ -275,9 +281,10 @@ def process_audiofile(input_filename,output_filename,options):
 parser = OptionParser(usage="usage: %prog [options] -o output.wav input.wav")
 parser.add_option("-o", "--output", dest="output",help="output WAV file",type="string",default="")
 parser.add_option("-k", "--keep-envelope", dest="keep_envelope", action="store_true",help="try to preserve the overall amplitude envelope",default=False)
+parser.add_option("-K", "--both-keep-envelope-modes", dest="both_keep_envelope_modes", action="store_true",help="output two files: one without keeping envelope and the other without keeping envelope",default=False)
 parser.add_option("-b", "--blocksize_seconds", dest="blocksize_seconds",help="blocksize (seconds)",type="float",default=60.0)
 parser.add_option("-l", "--limit_blocks", dest="limit_blocks",help="limit to adjacent L blocks in order to avoid mixing too distant parts of the audio file (default 0 = unlimited)",type="int",default=0)
-parser.add_option("-r", "--sample_rate", dest="sample_rate",help="convert to samplerate",type="int",default=0)
+parser.add_option("-r", "--sample_rate", dest="sample_rate",help="convert to sample_rate",type="int",default=0)
 (options, args) = parser.parse_args()
 
 if len(args)!=1 or len(options.output)==0:
@@ -286,12 +293,21 @@ if len(args)!=1 or len(options.output)==0:
 
 input_filename=args[0]
 print "Input file: "+input_filename
-print "Output file: "+options.output
 if not os.path.isfile(input_filename):
     print "Error: Could not open input file:",input_filename
     sys.exit(1)
 
-process_audiofile(input_filename,options.output,options)
+if options.both_keep_envelope_modes:
+    (output_base,output_ext)=os.path.splitext(options.output)
+    print "Making two output file (with/without envelope keeping)"
+    for keep_mode in [1,2]:
+        output_file=output_base+"_k"+str(keep_mode)+output_ext
+        print "Output file: "+output_file
+        process_audiofile(input_filename,output_file,options,keep_mode)        
+
+else:
+    print "Output file: "+options.output
+    process_audiofile(input_filename,options.output,options,2 if options.keep_envelope else 0)
 print
 
 
