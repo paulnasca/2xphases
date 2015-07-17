@@ -107,7 +107,7 @@ def process_audiofile(input_filename,output_filename,options):
     else:
         output_block_size_samples=input_block_size_samples*2
     if options.limit_blocks>0:
-        print "Limiting to %d adjacent blocks" % options.limit_blocks
+        print "Limiting to %d adjacent blocks; resulted spread size is %.1f seconds" % (options.limit_blocks,options.limit_blocks*float(input_block_size_samples)/samplerate)
     
     extra_output_samples=output_block_size_samples-input_block_size_samples*2
 
@@ -292,6 +292,7 @@ if not os.path.isfile(input_filename):
     sys.exit(1)
 
 process_audiofile(input_filename,options.output,options)
+print
 
 
 
