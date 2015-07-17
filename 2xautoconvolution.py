@@ -299,7 +299,7 @@ if not os.path.isfile(input_filename):
 
 if options.both_keep_envelope_modes:
     (output_base,output_ext)=os.path.splitext(options.output)
-    print "Making two output file (with/without envelope keeping)"
+    print "Making two output files (with/without envelope keeping)"
     for keep_mode in [1,2]:
         output_file=output_base+"_k"+str(keep_mode)+output_ext
         print "Output file: "+output_file
