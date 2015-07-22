@@ -189,7 +189,7 @@ def process_audiofile(input_filename,output_filename,options,keep_envelope_mode)
     #get the freq blocks and combine them, saving each output chunk
     block_mixes=get_block_mixes(n_blocks)
    
-    max_smp=np.zeros(nchannels,dtype=np.float32)+1e-6
+    max_smp=np.float32(1e-6)
     for k,block_mix in enumerate(block_mixes):
         size_shown=len(block_mix)
         if options.limit_blocks>0:
@@ -219,7 +219,7 @@ def process_audiofile(input_filename,output_filename,options,keep_envelope_mode)
                 cleanup_memory()
             del sum_freqs
             max_current_smp=max(np.amax(smp),-np.amin(smp))
-            max_smp[nchannel]=max(max_current_smp,max_smp[nchannel])
+            max_smp=max(max_current_smp,max_smp)
             multichannel_smps.append(smp)
             del smp
             cleanup_memory()
