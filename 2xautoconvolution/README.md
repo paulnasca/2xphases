@@ -26,8 +26,8 @@ Here are some examples using one minute excerpts from different songs:
   
  
  2. using [Era - Tara Shahti Mantra](https://www.youtube.com/watch?v=EAZd6LFME9A)
-  - [limiting the spread to 15 seconds](audio_demos/2_spread_15_seconds.ogg); 
-  - [limiting the spread to 3 seconds](audio_demos/2_spread_3_seconds.ogg); 
+  - ![limiting the spread to 15 seconds](audio_demos/2_spread_15_seconds.ogg?raw=true); 
+  - [limiting the spread to 3 seconds](audio_demos/2_spread_3_seconds.ogg?raw=true); 
   - [limiting the spread to half second](audio_demos/2_spread_half_second.ogg); notice that if the spread is too low (less than one seconds) it sounds more like an extreme sound stretch
  
  3. using [Enya - Athair Ar Neamh](https://www.youtube.com/watch?v=JIABga915AY)
