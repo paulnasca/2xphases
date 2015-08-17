@@ -7,13 +7,7 @@ FFT audio processing
 by Nasca Octavian Paul
 http://www.paulnasca.com
 
+This repository contains two programs: "2xautoconvolution" which uses autoconvolution to process audio and and older program "2xphases" which uses long-term FFT audio processing.
 
-example usage:
-2xphases.py -a 2.0 -p 2.0 -s 400 -k -r 22050 -o output.wav input.mp3
-
-autoconvolution.py -b 20 -k -o output.wav input.mp3
-
-Read the .py files for more details.
-
-
+The best results are by using "(2xautoconvolution)(2xautoconvolution/)". 
 
