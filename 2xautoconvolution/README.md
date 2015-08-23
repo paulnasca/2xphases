@@ -32,9 +32,9 @@ Here are some examples using one minute excerpts from different songs:
  
  3. using [Enya - Athair Ar Neamh](https://www.youtube.com/watch?v=JIABga915AY)
   - [limiting the spread to 15 seconds](audio_demos/3_spread_15_seconds_keep_envelope.ogg?raw=true); 
-  - [limiting the spread to 3 seconds w/o envelope preservation](audio_demos/3_spread_3_seconds_keep_envelope.ogg?raw=true); 
-  - [limiting the spread to 15 seconds](audio_demos/3_spread_15_seconds.ogg?raw=true); 
-  - [limiting the spread to 3 seconds w/o envelope preservation](audio_demos/3_spread_3_seconds.ogg?raw=true); 
+  - [limiting the spread to 3 seconds](audio_demos/3_spread_3_seconds_keep_envelope.ogg?raw=true); 
+  - [limiting the spread to 15 seconds without envelope preservation](audio_demos/3_spread_15_seconds.ogg?raw=true); 
+  - [limiting the spread to 3 seconds without envelope preservation](audio_demos/3_spread_3_seconds.ogg?raw=true); 
 
 
 More processed songs with this effect are available at [mixcloud](https://www.mixcloud.com/2xphases/).
